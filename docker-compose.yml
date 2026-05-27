@@ -50,17 +50,19 @@ services:
   openclaw:
     image: ghcr.io/openclaw/openclaw:latest
     restart: unless-stopped
+    command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
     env_file: .env
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENCLAW_GATEWAY_PASSWORD: ${OPENCLAW_GATEWAY_PASSWORD}
     volumes:
       - openclaw_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - ai-workforce
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:18789/healthz || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:18789/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -81,7 +83,7 @@ services:
     networks:
       - ai-workforce
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8642/health || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f 'hermes gateway' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
