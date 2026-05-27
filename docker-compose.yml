@@ -36,6 +36,7 @@ services:
         condition: service_healthy
     volumes:
       - paperclip_home:/paperclip
+      - ./services/plugins:/paperclip/.paperclip/plugins
     networks:
       - ai-workforce
     healthcheck:
@@ -55,7 +56,7 @@ services:
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENCLAW_GATEWAY_PASSWORD: ${OPENCLAW_GATEWAY_PASSWORD}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
     volumes:
       - openclaw_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
