@@ -1,0 +1,7 @@
+# Replace your-domain.com with your actual domain.
+# Caddy auto-provisions and renews TLS via Let's Encrypt.
+# Set PAPERCLIP_PUBLIC_URL=https://your-domain.com in .env before deploying.
+
+{$CADDY_DOMAIN:your-domain.com} {
+    reverse_proxy paperclip:3100
+}

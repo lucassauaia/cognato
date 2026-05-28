@@ -45,6 +45,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    # Local dev: expose directly. Production: remove this and use Caddy.
     ports:
       - "${PAPERCLIP_PORT:-3100}:3100"
 
@@ -92,11 +93,32 @@ services:
     ports:
       - "${HERMES_PORT:-8642}:8642"
 
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - ai-workforce
+    depends_on:
+      paperclip:
+        condition: service_healthy
+    profiles:
+      - production
+
 volumes:
   pgdata:
   paperclip_home:
   openclaw_data:
   hermes_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   ai-workforce:
