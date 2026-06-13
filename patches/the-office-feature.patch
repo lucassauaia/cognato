@@ -1,0 +1,171 @@
+diff --git a/Dockerfile b/Dockerfile
+index 03f26942..203c23ee 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -3,7 +3,7 @@ FROM node:lts-trixie-slim AS base
+ ARG USER_UID=1000
+ ARG USER_GID=1000
+ RUN apt-get update \
+-  && apt-get install -y --no-install-recommends ca-certificates gosu curl gh git wget ripgrep python3 \
++  && apt-get install -y --no-install-recommends ca-certificates gosu curl gh git wget ripgrep python3 python3-setuptools \
+   && rm -rf /var/lib/apt/lists/* \
+   && corepack enable
+ 
+@@ -51,6 +51,12 @@ RUN pnpm --filter @paperclipai/plugin-sdk build
+ RUN pnpm --filter @paperclipai/server build
+ RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
+ 
++# Bundle Agent-Pixels plugin
++RUN git clone --depth=1 https://github.com/gcampton/Agent-Pixels /app/bundled-plugins/agent-pixels \
++  && cd /app/bundled-plugins/agent-pixels \
++  && pnpm install \
++  && pnpm build
++
+ FROM base AS production
+ ARG USER_UID=1000
+ ARG USER_GID=1000
+diff --git a/scripts/docker-entrypoint.sh b/scripts/docker-entrypoint.sh
+index eb9078d4..3c115c70 100644
+--- a/scripts/docker-entrypoint.sh
++++ b/scripts/docker-entrypoint.sh
+@@ -26,4 +26,16 @@ if [ "$changed" = "1" ]; then
+     chown -R node:node /paperclip
+ fi
+ 
++# Auto-install bundled Agent-Pixels plugin into the runtime plugins directory
++BUNDLED_PLUGIN="/app/bundled-plugins/agent-pixels"
++PLUGINS_DIR="/paperclip/.paperclip/plugins"
++PLUGIN_DEST="$PLUGINS_DIR/agent-pixels"
++
++if [ -d "$BUNDLED_PLUGIN" ] && [ ! -d "$PLUGIN_DEST" ]; then
++  echo "Installing bundled Agent-Pixels plugin..."
++  mkdir -p "$PLUGINS_DIR"
++  cp -r "$BUNDLED_PLUGIN" "$PLUGIN_DEST"
++  chown -R node:node "$PLUGINS_DIR"
++fi
++
+ exec gosu node "$@"
+diff --git a/ui/src/App.tsx b/ui/src/App.tsx
+index f6d81f2b..9852ec09 100644
+--- a/ui/src/App.tsx
++++ b/ui/src/App.tsx
+@@ -50,6 +50,7 @@ import { PluginSettings } from "./pages/PluginSettings";
+ import { AdapterManager } from "./pages/AdapterManager";
+ import { PluginPage } from "./pages/PluginPage";
+ import { OrgChart } from "./pages/OrgChart";
++import { TheOffice } from "./pages/TheOffice";
+ import { NewAgent } from "./pages/NewAgent";
+ import { AuthPage } from "./pages/Auth";
+ import { BoardClaimPage } from "./pages/BoardClaim";
+@@ -143,6 +144,7 @@ function boardRoutes() {
+       <Route path="u/:userSlug" element={<UserProfile />} />
+       <Route path="design-guide" element={<DesignGuide />} />
+       <Route path="instance/settings/adapters" element={<AdapterManager />} />
++      <Route path="office" element={<TheOffice />} />
+       <Route path=":pluginRoutePath/*" element={<PluginPage />} />
+       <Route path="*" element={<NotFoundPage scope="board" />} />
+     </>
+diff --git a/ui/src/components/Sidebar.tsx b/ui/src/components/Sidebar.tsx
+index bce1f64a..89d77caf 100644
+--- a/ui/src/components/Sidebar.tsx
++++ b/ui/src/components/Sidebar.tsx
+@@ -12,6 +12,7 @@ import {
+   Repeat,
+   GitBranch,
+   Settings,
++  Monitor,
+ } from "lucide-react";
+ import { useQuery } from "@tanstack/react-query";
+ import { NavLink } from "@/lib/router";
+@@ -120,6 +121,7 @@ export function Sidebar() {
+         <SidebarAgents />
+ 
+         <SidebarSection label="Company">
++          <SidebarNavItem to="/office" label="The Office" icon={Monitor} />
+           <SidebarNavItem to="/org" label="Org" icon={Network} />
+           <SidebarNavItem to="/skills" label="Skills" icon={Boxes} />
+           <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
+diff --git a/ui/src/pages/TheOffice.tsx b/ui/src/pages/TheOffice.tsx
+new file mode 100644
+index 00000000..3304bc1a
+--- /dev/null
++++ b/ui/src/pages/TheOffice.tsx
+@@ -0,0 +1,78 @@
++import { useEffect, useMemo } from "react";
++import { useQuery } from "@tanstack/react-query";
++import { useCompany } from "@/context/CompanyContext";
++import { useBreadcrumbs } from "@/context/BreadcrumbContext";
++import { pluginsApi } from "@/api/plugins";
++import { queryKeys } from "@/lib/queryKeys";
++import { PluginSlotMount } from "@/plugins/slots";
++
++export function TheOffice() {
++  const { selectedCompanyId, selectedCompany } = useCompany();
++  const { setBreadcrumbs } = useBreadcrumbs();
++
++  const { data: contributions } = useQuery({
++    queryKey: queryKeys.plugins.uiContributions,
++    queryFn: () => pluginsApi.listUiContributions(),
++    enabled: !!selectedCompanyId,
++  });
++
++  const agentPixelsSlot = useMemo(() => {
++    if (!contributions) return null;
++    for (const contribution of contributions) {
++      const slot = contribution.slots.find((s) => s.type === "page");
++      if (!slot) continue;
++      if (contribution.displayName.toLowerCase().includes("pixel")) {
++        return {
++          ...slot,
++          pluginId: contribution.pluginId,
++          pluginKey: contribution.pluginKey,
++          pluginDisplayName: contribution.displayName,
++          pluginVersion: contribution.version,
++        };
++      }
++    }
++    return null;
++  }, [contributions]);
++
++  useEffect(() => {
++    setBreadcrumbs([{ label: "The Office" }]);
++  }, [setBreadcrumbs]);
++
++  const context = useMemo(
++    () => ({
++      companyId: selectedCompanyId ?? null,
++      companyPrefix: selectedCompany?.issuePrefix ?? null,
++    }),
++    [selectedCompanyId, selectedCompany],
++  );
++
++  if (!contributions) {
++    return <div className="text-sm text-muted-foreground">Loading…</div>;
++  }
++
++  if (!agentPixelsSlot) {
++    return (
++      <div className="space-y-3">
++        <h1 className="text-xl font-semibold">The Office</h1>
++        <div className="rounded-md border border-border bg-muted/20 px-4 py-8 text-center">
++          <p className="text-sm text-muted-foreground">Agent Pixels plugin is not installed.</p>
++          <p className="mt-1 text-xs text-muted-foreground">
++            Install it from the Plugin Manager to see your agents at work.
++          </p>
++        </div>
++      </div>
++    );
++  }
++
++  return (
++    <div className="space-y-4">
++      <h1 className="text-xl font-semibold">The Office</h1>
++      <PluginSlotMount
++        slot={agentPixelsSlot}
++        context={context}
++        className="min-h-[400px]"
++        missingBehavior="placeholder"
++      />
++    </div>
++  );
++}

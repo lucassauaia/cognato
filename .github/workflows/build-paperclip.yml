@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - .github/workflows/build-paperclip.yml
+      - patches/the-office-feature.patch
 
 jobs:
   build:
@@ -23,9 +24,9 @@ jobs:
           repository: paperclipai/paperclip
           path: services/paperclip
 
-      - name: Patch Dockerfile (python3-setuptools for node-gyp)
+      - name: Apply cognato2 patches (The Office feature + python3-setuptools fix)
         run: |
-          sed -i 's/python3 \\/python3 python3-setuptools \\/' services/paperclip/Dockerfile
+          git -C services/paperclip apply "$GITHUB_WORKSPACE/patches/the-office-feature.patch"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
