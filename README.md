@@ -1,4 +1,4 @@
-# Cognato2 — AI Workforce Stack
+# Cognato — AI Workforce Stack
 
 Local AI workforce: three agent services + PostgreSQL on a shared Docker bridge network.
 
