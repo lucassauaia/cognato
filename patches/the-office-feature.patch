@@ -1,5 +1,5 @@
 diff --git a/Dockerfile b/Dockerfile
-index 03f26942..203c23ee 100644
+index ae297a9..4e91158 100644
 --- a/Dockerfile
 +++ b/Dockerfile
 @@ -3,7 +3,7 @@ FROM node:lts-trixie-slim AS base
@@ -11,7 +11,7 @@ index 03f26942..203c23ee 100644
    && rm -rf /var/lib/apt/lists/* \
    && corepack enable
  
-@@ -51,6 +51,12 @@ RUN pnpm --filter @paperclipai/plugin-sdk build
+@@ -53,6 +53,12 @@ RUN pnpm --filter @paperclipai/plugin-sdk build
  RUN pnpm --filter @paperclipai/server build
  RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
  
@@ -25,10 +25,10 @@ index 03f26942..203c23ee 100644
  ARG USER_UID=1000
  ARG USER_GID=1000
 diff --git a/scripts/docker-entrypoint.sh b/scripts/docker-entrypoint.sh
-index eb9078d4..3c115c70 100644
+index 8187875..96aa692 100644
 --- a/scripts/docker-entrypoint.sh
 +++ b/scripts/docker-entrypoint.sh
-@@ -26,4 +26,16 @@ if [ "$changed" = "1" ]; then
+@@ -39,4 +39,16 @@ if [ "$changed" = "1" ]; then
      chown -R node:node /paperclip
  fi
  
@@ -46,10 +46,10 @@ index eb9078d4..3c115c70 100644
 +
  exec gosu node "$@"
 diff --git a/ui/src/App.tsx b/ui/src/App.tsx
-index f6d81f2b..9852ec09 100644
+index ba6e9e0..107fdb7 100644
 --- a/ui/src/App.tsx
 +++ b/ui/src/App.tsx
-@@ -50,6 +50,7 @@ import { PluginSettings } from "./pages/PluginSettings";
+@@ -54,6 +54,7 @@ import { PluginSettings } from "./pages/PluginSettings";
  import { AdapterManager } from "./pages/AdapterManager";
  import { PluginPage } from "./pages/PluginPage";
  import { OrgChart } from "./pages/OrgChart";
@@ -57,7 +57,7 @@ index f6d81f2b..9852ec09 100644
  import { NewAgent } from "./pages/NewAgent";
  import { AuthPage } from "./pages/Auth";
  import { BoardClaimPage } from "./pages/BoardClaim";
-@@ -143,6 +144,7 @@ function boardRoutes() {
+@@ -171,6 +172,7 @@ function boardRoutes() {
        <Route path="u/:userSlug" element={<UserProfile />} />
        <Route path="design-guide" element={<DesignGuide />} />
        <Route path="instance/settings/adapters" element={<AdapterManager />} />
@@ -66,19 +66,19 @@ index f6d81f2b..9852ec09 100644
        <Route path="*" element={<NotFoundPage scope="board" />} />
      </>
 diff --git a/ui/src/components/Sidebar.tsx b/ui/src/components/Sidebar.tsx
-index bce1f64a..89d77caf 100644
+index 61d3f2b..ae3708e 100644
 --- a/ui/src/components/Sidebar.tsx
 +++ b/ui/src/components/Sidebar.tsx
-@@ -12,6 +12,7 @@ import {
-   Repeat,
-   GitBranch,
-   Settings,
+@@ -18,6 +18,7 @@ import {
+   PanelLeftOpen,
+   Pin,
+   MessagesSquare,
 +  Monitor,
  } from "lucide-react";
  import { useQuery } from "@tanstack/react-query";
  import { NavLink } from "@/lib/router";
-@@ -120,6 +121,7 @@ export function Sidebar() {
-         <SidebarAgents />
+@@ -203,6 +204,7 @@ export function Sidebar() {
+         <SidebarAgents streamlined={streamlined} />
  
          <SidebarSection label="Company">
 +          <SidebarNavItem to="/office" label="The Office" icon={Monitor} />
@@ -87,7 +87,7 @@ index bce1f64a..89d77caf 100644
            <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
 diff --git a/ui/src/pages/TheOffice.tsx b/ui/src/pages/TheOffice.tsx
 new file mode 100644
-index 00000000..3304bc1a
+index 0000000..3304bc1
 --- /dev/null
 +++ b/ui/src/pages/TheOffice.tsx
 @@ -0,0 +1,78 @@
